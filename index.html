@@ -51,7 +51,7 @@
             border-radius: 4px;
             cursor: crosshair;
             max-width: 100%;
-            touch-action: none; /* Essencial para toque em dispositivos móveis */
+            touch-action: none; 
             width: 100%; 
             height: 200px; 
             margin-bottom: 15px;
@@ -123,8 +123,8 @@
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 
     <script>
-        // 🚨 URL DO SEU GOOGLE APPS SCRIPT
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzt9lJX9ep_gQqZvgumQmL9yEgEb9QVAgVsHfHXdxH3uKTw0Q8iPzsra5rjW8YrbIFdDw/exec"; 
+        // 🚨 CRÍTICO: SUBSTITUA ESTE VALOR PELO NOVO URL DE IMPLEMENTAÇÃO DO SEU APPS SCRIPT
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyFVTFSoV1DTjTIBZ-HaVQjuK3bMZDWWoLgyot4iXTfaKPEuZK0KPpKB2VZVnoP1D8X5Q/exec"; 
 
         // Configuração e elementos do DOM
         const canvas = document.getElementById('signatureCanvas');
@@ -140,30 +140,24 @@
         
         // --- Funções de Utilidade ---
         
-        // 1. Ajusta o tamanho do Canvas (essencial para o desenho)
         function resizeCanvas() {
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
-            
             canvas.width = canvas.offsetWidth * ratio;
             canvas.height = canvas.offsetHeight * ratio;
-            
             canvas.getContext("2d").scale(ratio, ratio);
             signaturePad.clear();
         }
 
-        // 2. Preenche a data de hoje automaticamente
         function setTodayDate() {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('date').value = today;
         }
 
         // --- Inicialização e Event Listeners ---
-        
         window.onresize = resizeCanvas;
         setTodayDate();
         resizeCanvas();
 
-        // Limpa a assinatura
         clearButton.addEventListener('click', function() {
             signaturePad.clear();
             signatureDataInput.value = '';
@@ -173,8 +167,7 @@
         // Lógica de Submissão do Formulário usando AJAX
         form.addEventListener('submit', function(event) {
             
-            // 🛑 CRÍTICO: Impede o comportamento padrão de submissão (impede a abertura da nova página)
-            event.preventDefault(); 
+            event.preventDefault(); // Impede o comportamento padrão
             
             if (signaturePad.isEmpty()) {
                 statusMessage.style.color = 'red';
@@ -186,11 +179,10 @@
             const base64Image = signaturePad.toDataURL('image/png');
             signatureDataInput.value = base64Image;
             
-            // Converte os dados do formulário para o formato URL-encoded
             const formData = new FormData(form);
             const dataToSend = new URLSearchParams(formData).toString();
 
-            // 2. Feedback visual e desativação do botão
+            // 2. Feedback visual
             statusMessage.style.color = '#007bff';
             statusMessage.textContent = "A enviar assinatura... Por favor, aguarde.";
             submitButton.disabled = true;
@@ -199,27 +191,23 @@
             // 3. Envio dos dados via Fetch API (AJAX)
             fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
-                mode: 'no-cors', // Essencial para comunicação externa com o Google Apps Script
+                mode: 'no-cors', 
                 cache: 'no-cache',
                 body: dataToSend
             })
             .then(() => {
-                // Sucesso (a resposta real não pode ser lida devido ao 'no-cors', mas o envio ocorreu)
+                // Sucesso (a resposta não pode ser lida, mas o envio ocorreu)
                 statusMessage.style.color = 'green';
                 statusMessage.textContent = "✅ Assinatura enviada e salva com sucesso!";
-                
-                // Limpa o canvas
                 signaturePad.clear();
                 signatureDataInput.value = '';
             })
             .catch(error => {
-                // Erro de rede ou de requisição
                 console.error('Erro:', error);
                 statusMessage.style.color = 'red';
-                statusMessage.textContent = "❌ Erro ao enviar a assinatura. Verifique o console.";
+                statusMessage.textContent = "❌ Erro ao enviar a assinatura. Tente novamente.";
             })
             .finally(() => {
-                // Reativa o botão
                 setTimeout(() => {
                     submitButton.disabled = false;
                     submitButton.textContent = "Enviar Assinatura";
