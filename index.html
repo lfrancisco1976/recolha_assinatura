@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Coleta de Assinaturas</title>
+    
     <style>
+        /* Estilos CSS */
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f4f9;
@@ -34,7 +36,7 @@
             font-weight: bold;
             color: #555;
         }
-        input[type="text"], input[type="date"], textarea {
+        input[type="date"] {
             width: 100%;
             padding: 10px;
             margin-bottom: 20px;
@@ -42,88 +44,143 @@
             border-radius: 4px;
             box-sizing: border-box;
         }
+        
+        /* Estilos para o Canvas de Assinatura */
+        #signatureCanvas {
+            border: 2px solid #ccc;
+            border-radius: 4px;
+            cursor: crosshair;
+            max-width: 100%;
+            touch-action: none; /* Essencial para toque em dispositivos móveis */
+            /* Definimos o tamanho no CSS para o layout, e no JS para o desenho */
+            width: 100%; 
+            height: 200px; 
+            margin-bottom: 15px;
+        }
+        
+        /* Estilos para os Botões */
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
         button {
-            background-color: #007bff;
-            color: white;
             padding: 12px 20px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            width: 100%;
             font-size: 16px;
             transition: background-color 0.3s ease;
         }
-        button:hover {
+        
+        button[type="submit"] {
+            background-color: #007bff;
+            color: white;
+            flex-grow: 1; /* Ocupa o espaço restante */
+        }
+        button[type="submit"]:hover {
             background-color: #0056b3;
         }
-        /* Área Placeholder para a Assinatura (onde entraria o Canvas) */
-        .signature-area {
-            border: 2px dashed #ccc;
-            height: 150px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: #999;
-            font-style: italic;
+
+        #clearButton {
+            background-color: #6c757d;
+            color: white;
+        }
+        #clearButton:hover {
+            background-color: #5a6268;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Assine Aqui</h1>
+        <h1>🖊️ Assinar Documento</h1>
+        
         <form id="signatureForm" action="https://script.google.com/macros/s/AKfycbzcYkzFHYShJJaygcAPq0XDc73dRdw0GR5rF6W6fpcMUsv4pgGg9wNpKCRIR7Eo6s_oYg/exec" method="POST" target="_blank">
             
             <label for="date">Data:</label>
             <input type="date" id="date" name="data" required>
             
-            <label for="signature-placeholder">Área para Assinatura (Canvas):</label>
-            <div class="signature-area" id="signature-placeholder">
-                [Aqui você integrará um Canvas com JavaScript para desenhar a assinatura]
-            </div>
-
+            <label for="signatureCanvas">Assinatura (Desenhe no espaço abaixo):</label>
+            
+            <canvas id="signatureCanvas"></canvas>
+            
             <input type="hidden" id="signatureData" name="assinatura" required>
 
-            <button type="submit">Enviar Assinatura</button>
+            <div class="button-group">
+                <button type="button" id="clearButton">Limpar</button>
+                
+                <button type="submit">Enviar Assinatura</button>
+            </div>
             
         </form>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+
     <script>
-        // Preenche a data de hoje automaticamente (opcional)
-        document.addEventListener('DOMContentLoaded', () => {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('date').value = today;
+        // Configuração inicial
+        const canvas = document.getElementById('signatureCanvas');
+        const signaturePad = new SignaturePad(canvas, {
+            backgroundColor: 'rgb(255, 255, 255)' 
         });
 
-        /* PASSO CRÍTICO: 
-        Para coletar a assinatura de verdade, você precisará de uma biblioteca JavaScript
-        como o **Signature Pad**. Essa biblioteca permite desenhar no Canvas, e depois
-        converte o desenho em uma string Base64 (que é o que você salvará na Coluna B).
+        const signatureDataInput = document.getElementById('signatureData');
+        const form = document.getElementById('signatureForm');
+        const clearButton = document.getElementById('clearButton');
         
-        Exemplo de como o JavaScript preencheria o campo oculto:
+        // --- Funções de Utilidade ---
         
-        function handleSignatureSubmit() {
-            // 1. Pega os dados do canvas como Base64
-            // const base64Image = signaturePad.toDataURL(); 
+        // 1. Ajusta o tamanho do Canvas para responsividade e telas HiDPI
+        function resizeCanvas() {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
             
-            // 2. Preenche o campo oculto
-            // document.getElementById('signatureData').value = base64Image;
+            // Define a dimensão real do canvas para o desenho (width e height do atributo)
+            // É importante usar .offsetWidth e .offsetHeight do elemento no DOM
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
             
-            // 3. Envia o formulário
-            // document.getElementById('signatureForm').submit();
+            // Redimensiona o contexto de desenho
+            canvas.getContext("2d").scale(ratio, ratio);
+            
+            // Mantém a assinatura após o resize (se necessário)
+            // Se você quiser limpar ao redimensionar: signaturePad.clear();
         }
-        */
+
+        // 2. Preenche a data de hoje automaticamente
+        function setTodayDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('date').value = today;
+        }
+
+        // --- Event Listeners ---
         
-        // Exemplo simplificado para demonstração:
-        document.getElementById('signatureForm').addEventListener('submit', function(e) {
-            // Apenas para mostrar o fluxo, preenchemos com um valor de teste
-            // Na implementação real, 'signatureData' seria o Base64 da imagem
-            document.getElementById('signatureData').value = 'Exemplo: Base64 da Assinatura'; 
+        // Inicializa o canvas e a data
+        window.onresize = resizeCanvas;
+        setTodayDate();
+        resizeCanvas();
+
+        // Limpa a assinatura
+        clearButton.addEventListener('click', function() {
+            signaturePad.clear();
+            signatureDataInput.value = '';
+        });
+
+        // Lógica de Submissão do Formulário
+        form.addEventListener('submit', function(event) {
             
-            // Lembre-se de substituir o atributo 'action' do formulário pelo URL do Apps Script!
-            
-            // e.preventDefault(); // Descomentar se quiser tratar o envio 100% via JS
+            if (signaturePad.isEmpty()) {
+                alert("Por favor, desenhe a sua assinatura antes de enviar.");
+                event.preventDefault(); // Impede o envio
+            } else {
+                // Converte a assinatura para a string Base64 (formato PNG)
+                const base64Image = signaturePad.toDataURL('image/png');
+                
+                // Insere a string Base64 no campo oculto 'assinatura'
+                signatureDataInput.value = base64Image;
+                
+                // O formulário prossegue com o envio para o Apps Script
+            }
         });
     </script>
 </body>
