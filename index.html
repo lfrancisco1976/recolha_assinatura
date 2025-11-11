@@ -6,7 +6,7 @@
     <title>Coleta de Assinaturas</title>
     
     <style>
-        /* Estilos CSS */
+        /* Estilos CSS (Mantidos para aparência) */
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f4f9;
@@ -45,7 +45,6 @@
             box-sizing: border-box;
         }
         
-        /* Estilos para o Canvas de Assinatura */
         #signatureCanvas {
             border: 2px solid #ccc;
             border-radius: 4px;
@@ -57,7 +56,6 @@
             margin-bottom: 15px;
         }
         
-        /* Estilos para os Botões */
         .button-group {
             display: flex;
             gap: 10px;
@@ -99,7 +97,10 @@
     <div class="container">
         <h1>🖊️ Assinar Documento</h1>
         
-        <form id="signatureForm" method="POST"> 
+        <form id="signatureForm" 
+              action="https://script.google.com/macros/s/AKfycbyI1od_FVcjlwhU4p2aOg3PbAABTAF_Rmww7kdhc2yy76G8LNmrWz1s1iH6z6TSdcCKlw/exec" 
+              method="POST" 
+              target="hidden_iframe"> 
             
             <label for="date">Data:</label>
             <input type="date" id="date" name="data" required>
@@ -120,12 +121,12 @@
         </form>
     </div>
 
+    <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;" 
+            onload="signatureSuccess()"></iframe> 
+    
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 
     <script>
-        // 🚨 CRÍTICO: SUBSTITUA ESTE VALOR PELO NOVO URL DE IMPLEMENTAÇÃO DO SEU APPS SCRIPT
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyFVTFSoV1DTjTIBZ-HaVQjuK3bMZDWWoLgyot4iXTfaKPEuZK0KPpKB2VZVnoP1D8X5Q/exec"; 
-
         // Configuração e elementos do DOM
         const canvas = document.getElementById('signatureCanvas');
         const signaturePad = new SignaturePad(canvas, {
@@ -153,6 +154,34 @@
             document.getElementById('date').value = today;
         }
 
+        // --- Funções de Feedback ---
+        
+        // Função chamada quando o iframe termina de carregar a resposta do GAS
+        function signatureSuccess() {
+            // Verifica se o iframe está a carregar o URL inicial (ignora) ou a resposta do form
+            if (hidden_iframe.src === 'about:blank' || hidden_iframe.src === '') {
+                 // Opcional: Aqui pode ler o conteúdo do iframe se o GAS devolver uma resposta específica
+                 // No nosso caso, confiamos no evento 'onload'.
+            }
+            
+            // Só executa o feedback se o botão estiver desativado (indicando envio)
+            if (submitButton.disabled) {
+                // Timeout para garantir que o GAS teve tempo de processar
+                setTimeout(function() {
+                    statusMessage.style.color = 'green';
+                    statusMessage.textContent = "✅ Assinatura enviada e salva com sucesso!";
+                    
+                    // Limpa o canvas e reativa o botão
+                    signaturePad.clear();
+                    signatureDataInput.value = '';
+                    submitButton.disabled = false;
+                    submitButton.textContent = "Enviar Assinatura";
+                    
+                    setTimeout(() => { statusMessage.textContent = ''; }, 4000); 
+                }, 500); 
+            }
+        }
+
         // --- Inicialização e Event Listeners ---
         window.onresize = resizeCanvas;
         setTodayDate();
@@ -164,12 +193,11 @@
             statusMessage.textContent = ''; 
         });
 
-        // Lógica de Submissão do Formulário usando AJAX
+        // Lógica de Submissão do Formulário
         form.addEventListener('submit', function(event) {
             
-            event.preventDefault(); // Impede o comportamento padrão
-            
             if (signaturePad.isEmpty()) {
+                event.preventDefault(); 
                 statusMessage.style.color = 'red';
                 statusMessage.textContent = "⚠️ Por favor, desenhe a sua assinatura antes de enviar.";
                 return;
@@ -178,41 +206,14 @@
             // 1. Preparação dos Dados
             const base64Image = signaturePad.toDataURL('image/png');
             signatureDataInput.value = base64Image;
-            
-            const formData = new FormData(form);
-            const dataToSend = new URLSearchParams(formData).toString();
 
-            // 2. Feedback visual
+            // 2. Feedback visual e desativação do botão
             statusMessage.style.color = '#007bff';
             statusMessage.textContent = "A enviar assinatura... Por favor, aguarde.";
             submitButton.disabled = true;
             submitButton.textContent = "A Enviar...";
             
-            // 3. Envio dos dados via Fetch API (AJAX)
-            fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors', 
-                cache: 'no-cache',
-                body: dataToSend
-            })
-            .then(() => {
-                // Sucesso (a resposta não pode ser lida, mas o envio ocorreu)
-                statusMessage.style.color = 'green';
-                statusMessage.textContent = "✅ Assinatura enviada e salva com sucesso!";
-                signaturePad.clear();
-                signatureDataInput.value = '';
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                statusMessage.style.color = 'red';
-                statusMessage.textContent = "❌ Erro ao enviar a assinatura. Tente novamente.";
-            })
-            .finally(() => {
-                setTimeout(() => {
-                    submitButton.disabled = false;
-                    submitButton.textContent = "Enviar Assinatura";
-                }, 3000);
-            });
+            // O formulário prossegue com a submissão para o iframe oculto.
         });
     </script>
 </body>
