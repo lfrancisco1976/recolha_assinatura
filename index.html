@@ -52,7 +52,6 @@
             cursor: crosshair;
             max-width: 100%;
             touch-action: none; /* Essencial para toque em dispositivos móveis */
-            /* Definimos o tamanho no CSS para o layout, e no JS para o desenho */
             width: 100%; 
             height: 200px; 
             margin-bottom: 15px;
@@ -77,10 +76,14 @@
         button[type="submit"] {
             background-color: #007bff;
             color: white;
-            flex-grow: 1; /* Ocupa o espaço restante */
+            flex-grow: 1;
         }
-        button[type="submit"]:hover {
+        button[type="submit"]:hover:not(:disabled) {
             background-color: #0056b3;
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         #clearButton {
@@ -96,7 +99,7 @@
     <div class="container">
         <h1>🖊️ Assinar Documento</h1>
         
-        <form id="signatureForm" action="https://script.google.com/macros/s/AKfycby0AiZ-iOHTXQN_F13TPpEUBBiLPBt29KidGOBF4FmF6WKoRfkDJDsitoJsYcYr7CWtCw/exec" method="POST" target="_blank">
+        <form id="signatureForm" method="POST"> 
             
             <label for="date">Data:</label>
             <input type="date" id="date" name="data" required>
@@ -109,9 +112,10 @@
 
             <div class="button-group">
                 <button type="button" id="clearButton">Limpar</button>
-                
-                <button type="submit">Enviar Assinatura</button>
+                <button type="submit" id="submitButton">Enviar Assinatura</button>
             </div>
+
+            <p id="statusMessage" style="text-align: center; margin-top: 20px; font-weight: bold;"></p>
             
         </form>
     </div>
@@ -119,7 +123,10 @@
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 
     <script>
-        // Configuração inicial
+        // 🚨 URL DO SEU GOOGLE APPS SCRIPT
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby0AiZ-iOHTXQN_F13TPpEUBBiLPBt29KidGOBF4FmF6WKoRfkDJDsitoJsYcYr7CWtCw/exec"; 
+
+        // Configuração inicial do Canvas
         const canvas = document.getElementById('signatureCanvas');
         const signaturePad = new SignaturePad(canvas, {
             backgroundColor: 'rgb(255, 255, 255)' 
@@ -128,6 +135,8 @@
         const signatureDataInput = document.getElementById('signatureData');
         const form = document.getElementById('signatureForm');
         const clearButton = document.getElementById('clearButton');
+        const submitButton = document.getElementById('submitButton');
+        const statusMessage = document.getElementById('statusMessage');
         
         // --- Funções de Utilidade ---
         
@@ -135,16 +144,11 @@
         function resizeCanvas() {
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
             
-            // Define a dimensão real do canvas para o desenho (width e height do atributo)
-            // É importante usar .offsetWidth e .offsetHeight do elemento no DOM
             canvas.width = canvas.offsetWidth * ratio;
             canvas.height = canvas.offsetHeight * ratio;
             
-            // Redimensiona o contexto de desenho
             canvas.getContext("2d").scale(ratio, ratio);
-            
-            // Mantém a assinatura após o resize (se necessário)
-            // Se você quiser limpar ao redimensionar: signaturePad.clear();
+            signaturePad.clear(); // Limpa ao redimensionar
         }
 
         // 2. Preenche a data de hoje automaticamente
@@ -155,7 +159,7 @@
 
         // --- Event Listeners ---
         
-        // Inicializa o canvas e a data
+        // Inicializa
         window.onresize = resizeCanvas;
         setTodayDate();
         resizeCanvas();
@@ -166,21 +170,63 @@
             signatureDataInput.value = '';
         });
 
-        // Lógica de Submissão do Formulário
+        // Lógica de Submissão do Formulário usando AJAX
         form.addEventListener('submit', function(event) {
             
+            event.preventDefault(); // Impede o envio padrão do formulário
+            
             if (signaturePad.isEmpty()) {
-                alert("Por favor, desenhe a sua assinatura antes de enviar.");
-                event.preventDefault(); // Impede o envio
-            } else {
-                // Converte a assinatura para a string Base64 (formato PNG)
-                const base64Image = signaturePad.toDataURL('image/png');
-                
-                // Insere a string Base64 no campo oculto 'assinatura'
-                signatureDataInput.value = base64Image;
-                
-                // O formulário prossegue com o envio para o Apps Script
+                statusMessage.style.color = 'red';
+                statusMessage.textContent = "⚠️ Por favor, desenhe a sua assinatura antes de enviar.";
+                return;
             }
+            
+            // 1. Preparação dos Dados
+            const base64Image = signaturePad.toDataURL('image/png');
+            signatureDataInput.value = base64Image;
+            
+            // Converte os dados do formulário para o formato URL-encoded
+            const formData = new FormData(form);
+            const dataToSend = new URLSearchParams(formData).toString();
+
+            // 2. Feedback visual e desativação do botão
+            statusMessage.style.color = '#007bff';
+            statusMessage.textContent = "A enviar assinatura... Por favor, aguarde.";
+            submitButton.disabled = true;
+            submitButton.textContent = "A Enviar...";
+            
+            // 3. Envio dos dados via Fetch API (AJAX)
+            fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Necessário para o Google Apps Script funcionar em sites externos
+                cache: 'no-cache',
+                contentType: 'application/x-www-form-urlencoded',
+                body: dataToSend
+            })
+            .then(response => {
+                // A resposta de 'no-cors' não pode ser lida, mas se não houver erro de rede, o envio foi bem-sucedido.
+                
+                statusMessage.style.color = 'green';
+                statusMessage.textContent = "✅ Assinatura enviada e salva com sucesso!";
+                
+                // Limpa o campo de assinatura
+                signaturePad.clear();
+                signatureDataInput.value = '';
+            })
+            .catch(error => {
+                // Erro de rede ou de requisição
+                console.error('Erro:', error);
+                statusMessage.style.color = 'red';
+                statusMessage.textContent = "❌ Erro ao enviar a assinatura. Verifique o console ou a ligação de rede.";
+            })
+            .finally(() => {
+                // Reativa o botão e limpa a mensagem de status após 3 segundos
+                setTimeout(() => {
+                    submitButton.disabled = false;
+                    submitButton.textContent = "Enviar Assinatura";
+                    statusMessage.textContent = '';
+                }, 3000);
+            });
         });
     </script>
 </body>
