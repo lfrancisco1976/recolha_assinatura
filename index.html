@@ -136,7 +136,7 @@ document.getElementById('uploadBtn').onclick = async () => {
   const dataUrl = canvas.toDataURL('image/png');
   const payload = { image: dataUrl, date: new Date().toLocaleDateString('pt-PT') };
   try {
-    const response = await fetch('https://script.google.com/macros/s/AKfycby0nkFjwPuOcgOqiU2GbG24usylOsWvk5i24QsraaKMaeBjSxySj4HckvdNGMMc_7AiMw/exec', {
+    const response = await fetch('https://script.google.com/macros/s/AKfycbzxTV86BHS37i-OrIUE11nrMYmlr2O71DQzX-zDoBG5sI2NTuo1MCEksEE01XiOEgW6mQ/exec', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
