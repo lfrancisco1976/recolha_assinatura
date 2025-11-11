@@ -98,7 +98,7 @@
         <h1>🖊️ Assinar Documento</h1>
         
         <form id="signatureForm" 
-              action="https://script.google.com/macros/s/AKfycbwwnT9eCz-5bX0S75marNSCvARxa2rVdUkAwjg5pA9DyWsgKcQRmQnL7FYeQ_0v0qBX/exec" 
+              action="https://script.google.com/macros/s/AKfycbyI1od_FVcjlwhU4p2aOg3PbAABTAF_Rmww7kdhc2yy76G8LNmrWz1s1iH6z6TSdcCKlw/exec" 
               method="POST" 
               target="hidden_iframe"> 
             
@@ -138,8 +138,9 @@
         const clearButton = document.getElementById('clearButton');
         const submitButton = document.getElementById('submitButton');
         const statusMessage = document.getElementById('statusMessage');
-        
-        // --- Funções de Utilidade ---
+        const hiddenIframe = document.getElementById('hidden_iframe'); // Obtém o iframe
+
+        // --- Funções de Utilidade (Mantidas) ---
         
         function resizeCanvas() {
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
@@ -154,31 +155,30 @@
             document.getElementById('date').value = today;
         }
 
-        // --- Funções de Feedback ---
+        // --- Funções de Feedback (ATUALIZADA) ---
         
         // Função chamada quando o iframe termina de carregar a resposta do GAS
-        function signatureSuccess() {
-            // Verifica se o iframe está a carregar o URL inicial (ignora) ou a resposta do form
-            if (hidden_iframe.src === 'about:blank' || hidden_iframe.src === '') {
-                 // Opcional: Aqui pode ler o conteúdo do iframe se o GAS devolver uma resposta específica
-                 // No nosso caso, confiamos no evento 'onload'.
-            }
+        window.signatureSuccess = function() { // Exposto globalmente para o iframe
             
-            // Só executa o feedback se o botão estiver desativado (indicando envio)
+            // 🚨 SÓ ATUALIZA O ESTADO SE ESTIVERMOS EM PROCESSO DE ENVIO 🚨
             if (submitButton.disabled) {
-                // Timeout para garantir que o GAS teve tempo de processar
-                setTimeout(function() {
-                    statusMessage.style.color = 'green';
-                    statusMessage.textContent = "✅ Assinatura enviada e salva com sucesso!";
-                    
-                    // Limpa o canvas e reativa o botão
-                    signaturePad.clear();
-                    signatureDataInput.value = '';
-                    submitButton.disabled = false;
-                    submitButton.textContent = "Enviar Assinatura";
-                    
-                    setTimeout(() => { statusMessage.textContent = ''; }, 4000); 
-                }, 500); 
+                
+                // 1. Apresenta a mensagem de sucesso
+                statusMessage.style.color = 'green';
+                statusMessage.textContent = "✅ Assinatura enviada e salva com sucesso!";
+                
+                // 2. Limpa o estado da página
+                signaturePad.clear();
+                signatureDataInput.value = '';
+                submitButton.disabled = false;
+                submitButton.textContent = "Enviar Assinatura";
+                
+                // 3. Limpa a mensagem após 4 segundos
+                setTimeout(() => { 
+                    statusMessage.textContent = ''; 
+                    // 4. Limpeza extra do iframe (opcional, mas seguro)
+                    hiddenIframe.src = 'about:blank'; 
+                }, 4000);
             }
         }
 
