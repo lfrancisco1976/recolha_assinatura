@@ -90,7 +90,7 @@
             background-color: #6c757d;
             color: white;
         }
-        #clearButton:hover {
+        #clearButton:hover:not(:disabled) {
             background-color: #5a6268;
         }
     </style>
@@ -126,7 +126,7 @@
         // 🚨 URL DO SEU GOOGLE APPS SCRIPT
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby0AiZ-iOHTXQN_F13TPpEUBBiLPBt29KidGOBF4FmF6WKoRfkDJDsitoJsYcYr7CWtCw/exec"; 
 
-        // Configuração inicial do Canvas
+        // Configuração e elementos do DOM
         const canvas = document.getElementById('signatureCanvas');
         const signaturePad = new SignaturePad(canvas, {
             backgroundColor: 'rgb(255, 255, 255)' 
@@ -140,7 +140,7 @@
         
         // --- Funções de Utilidade ---
         
-        // 1. Ajusta o tamanho do Canvas para responsividade e telas HiDPI
+        // 1. Ajusta o tamanho do Canvas (essencial para o desenho)
         function resizeCanvas() {
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
             
@@ -148,7 +148,7 @@
             canvas.height = canvas.offsetHeight * ratio;
             
             canvas.getContext("2d").scale(ratio, ratio);
-            signaturePad.clear(); // Limpa ao redimensionar
+            signaturePad.clear();
         }
 
         // 2. Preenche a data de hoje automaticamente
@@ -157,9 +157,8 @@
             document.getElementById('date').value = today;
         }
 
-        // --- Event Listeners ---
+        // --- Inicialização e Event Listeners ---
         
-        // Inicializa
         window.onresize = resizeCanvas;
         setTodayDate();
         resizeCanvas();
@@ -168,12 +167,14 @@
         clearButton.addEventListener('click', function() {
             signaturePad.clear();
             signatureDataInput.value = '';
+            statusMessage.textContent = ''; 
         });
 
         // Lógica de Submissão do Formulário usando AJAX
         form.addEventListener('submit', function(event) {
             
-            event.preventDefault(); // Impede o envio padrão do formulário
+            // 🛑 CRÍTICO: Impede o comportamento padrão de submissão (que abre a nova página)
+            event.preventDefault(); 
             
             if (signaturePad.isEmpty()) {
                 statusMessage.style.color = 'red';
@@ -198,33 +199,30 @@
             // 3. Envio dos dados via Fetch API (AJAX)
             fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
-                mode: 'no-cors', // Necessário para o Google Apps Script funcionar em sites externos
+                mode: 'no-cors', // Essencial para comunicação entre o GitHub Pages e o Google Apps Script
                 cache: 'no-cache',
-                contentType: 'application/x-www-form-urlencoded',
                 body: dataToSend
             })
-            .then(response => {
-                // A resposta de 'no-cors' não pode ser lida, mas se não houver erro de rede, o envio foi bem-sucedido.
-                
+            .then(() => {
+                // Sucesso (assumido devido ao 'no-cors' - não podemos ler a resposta real)
                 statusMessage.style.color = 'green';
                 statusMessage.textContent = "✅ Assinatura enviada e salva com sucesso!";
                 
-                // Limpa o campo de assinatura
+                // Limpa o canvas
                 signaturePad.clear();
                 signatureDataInput.value = '';
             })
             .catch(error => {
-                // Erro de rede ou de requisição
+                // Erro de rede
                 console.error('Erro:', error);
                 statusMessage.style.color = 'red';
-                statusMessage.textContent = "❌ Erro ao enviar a assinatura. Verifique o console ou a ligação de rede.";
+                statusMessage.textContent = "❌ Erro ao enviar a assinatura. Tente novamente.";
             })
             .finally(() => {
-                // Reativa o botão e limpa a mensagem de status após 3 segundos
+                // Reativa o botão
                 setTimeout(() => {
                     submitButton.disabled = false;
                     submitButton.textContent = "Enviar Assinatura";
-                    statusMessage.textContent = '';
                 }, 3000);
             });
         });
